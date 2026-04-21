@@ -1,34 +1,40 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <gpx version="1.1" creator="demo">
 
-  <!-- WPT 10개 -->
-  <wpt lat="37.5341" lon="126.8671"><name>GS-01</name></wpt>
-  <wpt lat="37.5343" lon="126.8675"><name>GS-02</name></wpt>
-  <wpt lat="37.5346" lon="126.8679"><name>GS-03</name></wpt>
-  <wpt lat="37.5349" lon="126.8683"><name>GS-04</name></wpt>
-  <wpt lat="37.5352" lon="126.8687"><name>GS-05</name></wpt>
-  <wpt lat="37.5355" lon="126.8690"><name>GS-06</name></wpt>
-  <wpt lat="37.5358" lon="126.8693"><name>GS-07</name></wpt>
-  <wpt lat="37.5361" lon="126.8696"><name>GS-08</name></wpt>
-  <wpt lat="37.5364" lon="126.8700"><name>GS-09</name></wpt>
-  <wpt lat="37.5367" lon="126.8703"><name>GS-10</name></wpt>
-
-  <!-- 가로 트랙 -->
+  <!-- 트랙1 (가로) -->
   <trk>
-    <name>Horizontal</name>
+    <name>Track 1</name>
     <trkseg>
       <trkpt lat="37.5350" lon="126.8665"/>
+      <trkpt lat="37.5350" lon="126.8675"/>
+      <trkpt lat="37.5350" lon="126.8685"/>
+      <trkpt lat="37.5350" lon="126.8695"/>
       <trkpt lat="37.5350" lon="126.8705"/>
     </trkseg>
   </trk>
 
-  <!-- 세로 트랙 -->
+  <!-- 트랙2 (세로) -->
   <trk>
-    <name>Vertical</name>
+    <name>Track 2</name>
     <trkseg>
       <trkpt lat="37.5335" lon="126.8685"/>
-      <trkpt lat="37.5368" lon="126.8685"/>
+      <trkpt lat="37.5345" lon="126.8685"/>
+      <trkpt lat="37.5350" lon="126.8685"/>
+      <trkpt lat="37.5360" lon="126.8685"/>
+      <trkpt lat="37.5370" lon="126.8685"/>
     </trkseg>
   </trk>
+
+  <!-- WPT (모두 트랙 위) -->
+  <wpt lat="37.5350" lon="126.8665"><name>WPT-1</name></wpt>
+  <wpt lat="37.5350" lon="126.8675"><name>WPT-2</name></wpt>
+  <wpt lat="37.5350" lon="126.8685"><name>WPT-3</name></wpt>
+  <wpt lat="37.5350" lon="126.8695"><name>WPT-4</name></wpt>
+  <wpt lat="37.5350" lon="126.8705"><name>WPT-5</name></wpt>
+
+  <wpt lat="37.5335" lon="126.8685"><name>WPT-6</name></wpt>
+  <wpt lat="37.5345" lon="126.8685"><name>WPT-7</name></wpt>
+  <wpt lat="37.5360" lon="126.8685"><name>WPT-8</name></wpt>
+  <wpt lat="37.5370" lon="126.8685"><name>WPT-9</name></wpt>
 
 </gpx>
