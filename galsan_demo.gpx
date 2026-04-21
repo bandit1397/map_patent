@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<gpx version="1.1" creator="patent-demo">
+<gpx version="1.1" creator="demo">
 
-  <!-- 가로등 10개 -->
+  <!-- WPT 10개 -->
   <wpt lat="37.5341" lon="126.8671"><name>GS-01</name></wpt>
   <wpt lat="37.5343" lon="126.8675"><name>GS-02</name></wpt>
   <wpt lat="37.5346" lon="126.8679"><name>GS-03</name></wpt>
@@ -13,20 +13,21 @@
   <wpt lat="37.5364" lon="126.8700"><name>GS-09</name></wpt>
   <wpt lat="37.5367" lon="126.8703"><name>GS-10</name></wpt>
 
-  <!-- 등산로 -->
+  <!-- 가로 트랙 -->
   <trk>
-    <name>Galsan Trail</name>
+    <name>Horizontal</name>
     <trkseg>
-      <trkpt lat="37.5340" lon="126.8670"></trkpt>
-      <trkpt lat="37.5342" lon="126.8674"></trkpt>
-      <trkpt lat="37.5345" lon="126.8678"></trkpt>
-      <trkpt lat="37.5348" lon="126.8682"></trkpt>
-      <trkpt lat="37.5351" lon="126.8686"></trkpt>
-      <trkpt lat="37.5354" lon="126.8689"></trkpt>
-      <trkpt lat="37.5357" lon="126.8692"></trkpt>
-      <trkpt lat="37.5360" lon="126.8695"></trkpt>
-      <trkpt lat="37.5363" lon="126.8699"></trkpt>
-      <trkpt lat="37.5366" lon="126.8702"></trkpt>
+      <trkpt lat="37.5350" lon="126.8665"/>
+      <trkpt lat="37.5350" lon="126.8705"/>
+    </trkseg>
+  </trk>
+
+  <!-- 세로 트랙 -->
+  <trk>
+    <name>Vertical</name>
+    <trkseg>
+      <trkpt lat="37.5335" lon="126.8685"/>
+      <trkpt lat="37.5368" lon="126.8685"/>
     </trkseg>
   </trk>
 
