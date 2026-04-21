@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
 <meta charset="utf-8" />
-<title>완전 동작 산악 경로 시스템</title>
+<title>트랙 기반 최단경로 (출발/도착 선택)</title>
 
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -25,7 +25,12 @@ body { margin:0; }
 
 <body>
 
-<div id="info">📍 클릭 → 트랙 위 최단경로</div>
+<div id="info">
+① 지도 클릭 = 출발점<br>
+② WPT 클릭 = 도착점<br>
+👉 트랙 최단경로 계산
+</div>
+
 <div id="map"></div>
 
 <script>
@@ -44,12 +49,18 @@ let graph = {};
 let wptMarkers = [];
 let pathLine = null;
 
+let startNode = null;
+
 const blueIcon = L.icon({
   iconUrl:"https://maps.google.com/mapfiles/ms/icons/blue-dot.png",
   iconSize:[32,32]
 });
 const redIcon = L.icon({
   iconUrl:"https://maps.google.com/mapfiles/ms/icons/red-dot.png",
+  iconSize:[32,32]
+});
+const greenIcon = L.icon({
+  iconUrl:"https://maps.google.com/mapfiles/ms/icons/green-dot.png",
   iconSize:[32,32]
 });
 
@@ -64,35 +75,29 @@ new L.GPX("galsan_demo.gpx", {
 
   map.fitBounds(e.target.getBounds());
 
-  // 👉 트랙 그래프 생성 (핵심)
-  extractTrackGraph(e.target);
-
-  // 👉 WPT 로드
+  extractGraph(e.target);
   loadWPT();
 
-})
-.on("error", function(){
-  alert("❌ GPX 파일 경로 확인하세요");
 })
 .addTo(map);
 
 // ======================
-// 4. 트랙 → 그래프
+// 4. 그래프 생성
 // ======================
-function extractTrackGraph(gpx){
+function extractGraph(gpx){
 
   graph = {};
 
-  function process(layer){
+  function walk(layer){
 
     if(layer instanceof L.Polyline){
 
-      const latlngs = layer.getLatLngs();
+      const pts = layer.getLatLngs();
 
-      for(let i=0;i<latlngs.length-1;i++){
+      for(let i=0;i<pts.length-1;i++){
 
-        const a = latlngs[i];
-        const b = latlngs[i+1];
+        const a = pts[i];
+        const b = pts[i+1];
 
         const A = `${a.lat.toFixed(6)},${a.lng.toFixed(6)}`;
         const B = `${b.lat.toFixed(6)},${b.lng.toFixed(6)}`;
@@ -106,17 +111,17 @@ function extractTrackGraph(gpx){
     }
 
     if(layer.eachLayer){
-      layer.eachLayer(process);
+      layer.eachLayer(walk);
     }
   }
 
-  process(gpx);
+  walk(gpx);
 
-  console.log("그래프 노드:", Object.keys(graph).length);
+  console.log("그래프:", Object.keys(graph).length);
 }
 
 // ======================
-// 5. WPT 로드
+// 5. WPT 로드 + 클릭 이벤트
 // ======================
 function loadWPT(){
 
@@ -133,11 +138,33 @@ function loadWPT(){
       const lng = parseFloat(wpts[i].getAttribute("lon"));
       const name = wpts[i].getElementsByTagName("name")[0].textContent;
 
-      const m = L.marker([lat,lng],{icon:blueIcon})
+      const marker = L.marker([lat,lng],{icon:blueIcon})
         .bindPopup(name)
         .addTo(map);
 
-      wptMarkers.push({lat,lng,name,marker:m});
+      const wpt = {lat,lng,name,marker};
+
+      // 🔥 핵심: WPT 클릭 → 도착점
+      marker.on("click", function(){
+
+        if(!startNode){
+          alert("먼저 출발점을 클릭하세요");
+          return;
+        }
+
+        // 도착 노드
+        const endNode = snap(lat,lng);
+
+        // 최단 경로
+        const path = shortest(startNode,endNode);
+
+        draw(path);
+
+        marker.setIcon(redIcon);
+        marker.openPopup();
+      });
+
+      wptMarkers.push(wpt);
     }
 
     console.log("WPT:", wptMarkers.length);
@@ -154,7 +181,11 @@ function snap(lat,lng){
   Object.keys(graph).forEach(n=>{
     const [a,b]=n.split(",").map(Number);
     const d=(lat-a)**2+(lng-b)**2;
-    if(d<min){min=d;best=n;}
+
+    if(d<min){
+      min=d;
+      best=n;
+    }
   });
 
   return best;
@@ -196,13 +227,17 @@ function shortest(start,end){
   }
 
   let path=[],u=end;
-  while(u){ path.unshift(u); u=prev[u]; }
+
+  while(u){
+    path.unshift(u);
+    u=prev[u];
+  }
 
   return path;
 }
 
 // ======================
-// 8. 경로 표시
+// 8. 경로 그리기
 // ======================
 function draw(path){
 
@@ -213,36 +248,30 @@ function draw(path){
     return [a,b];
   });
 
-  pathLine = L.polyline(pts,{color:"blue",weight:5}).addTo(map);
+  pathLine = L.polyline(pts,{
+    color:"blue",
+    weight:5
+  }).addTo(map);
 }
 
 // ======================
-// 9. 클릭
+// 9. 지도 클릭 → 출발점 설정
 // ======================
-map.on("click", e=>{
+map.on("click", function(e){
 
-  if(wptMarkers.length===0){
-    alert("WPT 로딩중");
-    return;
-  }
+  const snapped = snap(e.latlng.lat,e.latlng.lng);
 
-  const start = snap(e.latlng.lat,e.latlng.lng);
+  startNode = snapped;
 
-  let target=null, min=Infinity;
+  const [lat,lng] = snapped.split(",").map(Number);
 
-  wptMarkers.forEach(w=>{
-    const d=(e.latlng.lat-w.lat)**2+(e.latlng.lng-w.lng)**2;
-    if(d<min){min=d;target=w;}
-  });
+  L.marker([lat,lng],{
+    icon:greenIcon
+  })
+  .addTo(map)
+  .bindPopup("출발점")
+  .openPopup();
 
-  const end = snap(target.lat,target.lng);
-
-  const path = shortest(start,end);
-
-  draw(path);
-
-  target.marker.setIcon(redIcon);
-  target.marker.openPopup();
 });
 
 </script>
