@@ -43,57 +43,84 @@ L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
 }).addTo(map);
 
 // ===============================
-// 2. GPX 로드 (트랙 + WPT)
+// 2. 변수 선언
 // ===============================
 let wptList = [];
+let wptMarkers = [];
+let lastSelectedMarker = null;
 
-const gpxLayer = new L.GPX("galsan_demo.gpx", {
+// 아이콘
+const blueIcon = L.icon({
+  iconUrl: "https://maps.google.com/mapfiles/ms/icons/blue-dot.png",
+  iconSize: [32,32]
+});
+
+const redIcon = L.icon({
+  iconUrl: "https://maps.google.com/mapfiles/ms/icons/red-dot.png",
+  iconSize: [32,32]
+});
+
+// ===============================
+// 3. GPX 트랙 로드
+// ===============================
+new L.GPX("galsan_demo.gpx", {
   async: true,
   polyline_options: {
     color: "red",
     weight: 4
-  },
-  marker_options: {
-    wptIconUrls: {
-      "": "https://maps.google.com/mapfiles/ms/icons/blue-dot.png"
-    }
   }
 })
 .on("loaded", function(e){
-
   map.fitBounds(e.target.getBounds());
 
-  // GPX 내부 WPT 추출
-  const layers = e.target._layers;
+  // ===============================
+  // 4. WPT XML 직접 파싱 (핵심)
+  // ===============================
+  fetch("galsan_demo.gpx")
+    .then(res => res.text())
+    .then(xmlText => {
 
-  Object.values(layers).forEach(layer=>{
-    if(layer instanceof L.Marker){
+      const parser = new DOMParser();
+      const xml = parser.parseFromString(xmlText, "application/xml");
 
-      const latlng = layer.getLatLng();
+      const wpts = xml.getElementsByTagName("wpt");
 
-      // 이름 추출
-      let name = "";
-      if(layer.getPopup()){
-        name = layer.getPopup().getContent();
-      }
+      wptList = [];
+      wptMarkers = [];
 
-      if(name){
-        wptList.push({
-          name: name,
-          lat: latlng.lat,
-          lng: latlng.lng,
-          marker: layer
+      for(let i=0; i<wpts.length; i++){
+
+        const lat = parseFloat(wpts[i].getAttribute("lat"));
+        const lng = parseFloat(wpts[i].getAttribute("lon"));
+
+        const nameNode = wpts[i].getElementsByTagName("name")[0];
+        const name = nameNode ? nameNode.textContent : "이름없음";
+
+        // 데이터 저장
+        const wptObj = { name, lat, lng };
+        wptList.push(wptObj);
+
+        // 지도 마커 생성
+        const marker = L.marker([lat, lng], { icon: blueIcon })
+          .bindPopup(name)
+          .addTo(map);
+
+        wptMarkers.push({
+          ...wptObj,
+          marker: marker
         });
       }
-    }
-  });
 
-  console.log("WPT 개수:", wptList.length);
+      console.log("✅ WPT 로드 완료:", wptList.length);
+    })
+    .catch(err=>{
+      console.error("❌ GPX 로드 실패:", err);
+    });
 })
 .addTo(map);
 
 // ===============================
-// 3. 거리 계산 (핵심 알고리즘)
+// 5. 거리 계산 (핵심 알고리즘)
 // ===============================
 function getDistance(a, b){
   const dx = a.lat - b.lat;
@@ -102,14 +129,14 @@ function getDistance(a, b){
 }
 
 // ===============================
-// 4. 클릭 → 가장 가까운 WPT 찾기
+// 6. 클릭 → 가장 가까운 WPT 찾기
 // ===============================
 let lastPopup = null;
 
 map.on("click", function(e){
 
-  if(wptList.length === 0){
-    alert("WPT 로딩 중...");
+  if(wptMarkers.length === 0){
+    alert("⚠️ WPT 로딩 중입니다.");
     return;
   }
 
@@ -121,7 +148,7 @@ map.on("click", function(e){
   let nearest = null;
   let minDist = Infinity;
 
-  wptList.forEach(w=>{
+  wptMarkers.forEach(w=>{
     const dist = getDistance(clicked, w);
     if(dist < minDist){
       minDist = dist;
@@ -131,11 +158,18 @@ map.on("click", function(e){
 
   if(nearest){
 
+    // 이전 마커 색상 복구
+    if(lastSelectedMarker && lastSelectedMarker !== nearest.marker){
+      lastSelectedMarker.setIcon(blueIcon);
+    }
+
+    // 현재 마커 강조
+    nearest.marker.setIcon(redIcon);
+    nearest.marker.openPopup();
+    lastSelectedMarker = nearest.marker;
+
     // 기존 팝업 제거
     if(lastPopup) map.closePopup(lastPopup);
-
-    // WPT 강조
-    nearest.marker.openPopup();
 
     // 결과 표시
     lastPopup = L.popup()
