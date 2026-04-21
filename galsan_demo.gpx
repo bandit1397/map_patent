@@ -1,40 +1,25 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <gpx version="1.1" creator="demo">
 
-  <!-- 트랙1 (가로) -->
-  <trk>
-    <name>Track 1</name>
-    <trkseg>
-      <trkpt lat="37.5350" lon="126.8665"/>
-      <trkpt lat="37.5350" lon="126.8675"/>
-      <trkpt lat="37.5350" lon="126.8685"/>
-      <trkpt lat="37.5350" lon="126.8695"/>
-      <trkpt lat="37.5350" lon="126.8705"/>
-    </trkseg>
-  </trk>
+<trk><name>H</name><trkseg>
+<trkpt lat="37.5350" lon="126.8665"/>
+<trkpt lat="37.5350" lon="126.8675"/>
+<trkpt lat="37.5350" lon="126.8685"/>
+<trkpt lat="37.5350" lon="126.8695"/>
+<trkpt lat="37.5350" lon="126.8705"/>
+</trkseg></trk>
 
-  <!-- 트랙2 (세로) -->
-  <trk>
-    <name>Track 2</name>
-    <trkseg>
-      <trkpt lat="37.5335" lon="126.8685"/>
-      <trkpt lat="37.5345" lon="126.8685"/>
-      <trkpt lat="37.5350" lon="126.8685"/>
-      <trkpt lat="37.5360" lon="126.8685"/>
-      <trkpt lat="37.5370" lon="126.8685"/>
-    </trkseg>
-  </trk>
+<trk><name>V</name><trkseg>
+<trkpt lat="37.5335" lon="126.8685"/>
+<trkpt lat="37.5345" lon="126.8685"/>
+<trkpt lat="37.5350" lon="126.8685"/>
+<trkpt lat="37.5360" lon="126.8685"/>
+<trkpt lat="37.5370" lon="126.8685"/>
+</trkseg></trk>
 
-  <!-- WPT (모두 트랙 위) -->
-  <wpt lat="37.5350" lon="126.8665"><name>WPT-1</name></wpt>
-  <wpt lat="37.5350" lon="126.8675"><name>WPT-2</name></wpt>
-  <wpt lat="37.5350" lon="126.8685"><name>WPT-3</name></wpt>
-  <wpt lat="37.5350" lon="126.8695"><name>WPT-4</name></wpt>
-  <wpt lat="37.5350" lon="126.8705"><name>WPT-5</name></wpt>
-
-  <wpt lat="37.5335" lon="126.8685"><name>WPT-6</name></wpt>
-  <wpt lat="37.5345" lon="126.8685"><name>WPT-7</name></wpt>
-  <wpt lat="37.5360" lon="126.8685"><name>WPT-8</name></wpt>
-  <wpt lat="37.5370" lon="126.8685"><name>WPT-9</name></wpt>
+<wpt lat="37.5350" lon="126.8675"><name>A</name></wpt>
+<wpt lat="37.5350" lon="126.8695"><name>B</name></wpt>
+<wpt lat="37.5345" lon="126.8685"><name>C</name></wpt>
+<wpt lat="37.5360" lon="126.8685"><name>D</name></wpt>
 
 </gpx>
