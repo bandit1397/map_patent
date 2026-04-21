@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
 <meta charset="utf-8" />
-<title>산악 위치 특정 시스템 (핵심 구조)</title>
+<title>산악 위치 특정 시스템 (특허용 데모)</title>
 
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -11,69 +11,107 @@
 <style>
   body { margin:0; }
   #map { height:100vh; }
+  #info {
+    position: fixed;
+    top: 10px;
+    left: 10px;
+    background: white;
+    padding: 10px;
+    border-radius: 5px;
+    font-size: 14px;
+    z-index: 999;
+  }
 </style>
 </head>
 
 <body>
+
+<div id="info">
+  📍 지도 클릭 → 가장 가까운 가로등 자동 표시
+</div>
+
 <div id="map"></div>
 
 <script>
 // ===============================
 // 1. 지도 초기화
 // ===============================
-const map = L.map('map').setView([37.38,126.65], 15);
+const map = L.map('map').setView([37.5345,126.8685], 15);
 
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
   maxZoom: 19
 }).addTo(map);
 
 // ===============================
-// 2. GPX 트랙 로드
+// 2. GPX 로드 (트랙 + WPT)
 // ===============================
-const gpxLayer = new L.GPX("routes/mountain.gpx", {
+let wptList = [];
+
+const gpxLayer = new L.GPX("galsan_demo.gpx", {
   async: true,
-  polyline_options: { color: "red", weight: 4 }
-}).on('loaded', function(e){
+  polyline_options: {
+    color: "red",
+    weight: 4
+  },
+  marker_options: {
+    wptIconUrls: {
+      "": "https://maps.google.com/mapfiles/ms/icons/blue-dot.png"
+    }
+  }
+})
+.on("loaded", function(e){
+
   map.fitBounds(e.target.getBounds());
-}).addTo(map);
 
-// ===============================
-// 3. WPT 데이터 (가로등)
-// ===============================
-const wptData = [
-  {name:"가로등1", lat:37.381, lng:126.651},
-  {name:"가로등2", lat:37.382, lng:126.652},
-  {name:"가로등3", lat:37.383, lng:126.653}
-];
+  // GPX 내부 WPT 추출
+  const layers = e.target._layers;
 
-let wptMarkers = [];
+  Object.values(layers).forEach(layer=>{
+    if(layer instanceof L.Marker){
 
-wptData.forEach(w=>{
-  const m = L.marker([w.lat, w.lng])
-    .bindPopup(w.name)
-    .addTo(map);
+      const latlng = layer.getLatLng();
 
-  wptMarkers.push({
-    name: w.name,
-    lat: w.lat,
-    lng: w.lng,
-    marker: m
+      // 이름 추출
+      let name = "";
+      if(layer.getPopup()){
+        name = layer.getPopup().getContent();
+      }
+
+      if(name){
+        wptList.push({
+          name: name,
+          lat: latlng.lat,
+          lng: latlng.lng,
+          marker: layer
+        });
+      }
+    }
   });
-});
+
+  console.log("WPT 개수:", wptList.length);
+})
+.addTo(map);
 
 // ===============================
-// 4. 핵심 알고리즘 (특허 포인트)
+// 3. 거리 계산 (핵심 알고리즘)
 // ===============================
-
-// 거리 계산 함수
 function getDistance(a, b){
   const dx = a.lat - b.lat;
   const dy = a.lng - b.lng;
   return dx*dx + dy*dy;
 }
 
-// 클릭 → 가장 가까운 WPT 찾기
+// ===============================
+// 4. 클릭 → 가장 가까운 WPT 찾기
+// ===============================
+let lastPopup = null;
+
 map.on("click", function(e){
+
+  if(wptList.length === 0){
+    alert("WPT 로딩 중...");
+    return;
+  }
 
   const clicked = {
     lat: e.latlng.lat,
@@ -83,7 +121,7 @@ map.on("click", function(e){
   let nearest = null;
   let minDist = Infinity;
 
-  wptMarkers.forEach(w=>{
+  wptList.forEach(w=>{
     const dist = getDistance(clicked, w);
     if(dist < minDist){
       minDist = dist;
@@ -91,17 +129,23 @@ map.on("click", function(e){
     }
   });
 
-  // 결과 표시
   if(nearest){
+
+    // 기존 팝업 제거
+    if(lastPopup) map.closePopup(lastPopup);
+
+    // WPT 강조
     nearest.marker.openPopup();
 
-    L.popup()
+    // 결과 표시
+    lastPopup = L.popup()
       .setLatLng(e.latlng)
-      .setContent("가장 가까운 기준점: " + nearest.name)
+      .setContent("📍 가장 가까운 가로등: <b>" + nearest.name + "</b>")
       .openOn(map);
   }
 });
 
 </script>
+
 </body>
 </html>
