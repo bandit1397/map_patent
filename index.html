@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
 <meta charset="utf-8" />
-<title>산악 위치 특정 시스템 (특허용 데모)</title>
+<title>산악 위치 특정 + 최단경로 시스템</title>
 
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -27,7 +27,7 @@
 <body>
 
 <div id="info">
-  📍 지도 클릭 → 가장 가까운 가로등 자동 표시
+📍 클릭 → 가장 가까운 가로등 + 트랙 기반 최단경로 표시
 </div>
 
 <div id="map"></div>
@@ -45,9 +45,11 @@ L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
 // ===============================
 // 2. 변수 선언
 // ===============================
-let wptList = [];
 let wptMarkers = [];
 let lastSelectedMarker = null;
+let lastPopup = null;
+let graph = {};
+let pathLine = null;
 
 // 아이콘
 const blueIcon = L.icon({
@@ -71,10 +73,16 @@ new L.GPX("galsan_demo.gpx", {
   }
 })
 .on("loaded", function(e){
+
   map.fitBounds(e.target.getBounds());
 
   // ===============================
-  // 4. WPT XML 직접 파싱 (핵심)
+  // 4. 트랙 → 그래프 변환
+  // ===============================
+  buildGraphFromGPX(e.target);
+
+  // ===============================
+  // 5. WPT XML 파싱
   // ===============================
   fetch("galsan_demo.gpx")
     .then(res => res.text())
@@ -85,42 +93,63 @@ new L.GPX("galsan_demo.gpx", {
 
       const wpts = xml.getElementsByTagName("wpt");
 
-      wptList = [];
       wptMarkers = [];
 
       for(let i=0; i<wpts.length; i++){
 
         const lat = parseFloat(wpts[i].getAttribute("lat"));
         const lng = parseFloat(wpts[i].getAttribute("lon"));
+        const name = wpts[i].getElementsByTagName("name")[0].textContent;
 
-        const nameNode = wpts[i].getElementsByTagName("name")[0];
-        const name = nameNode ? nameNode.textContent : "이름없음";
-
-        // 데이터 저장
-        const wptObj = { name, lat, lng };
-        wptList.push(wptObj);
-
-        // 지도 마커 생성
         const marker = L.marker([lat, lng], { icon: blueIcon })
           .bindPopup(name)
           .addTo(map);
 
         wptMarkers.push({
-          ...wptObj,
-          marker: marker
+          name, lat, lng, marker
         });
       }
 
-      console.log("✅ WPT 로드 완료:", wptList.length);
-    })
-    .catch(err=>{
-      console.error("❌ GPX 로드 실패:", err);
+      console.log("✅ WPT 로드 완료:", wptMarkers.length);
     });
 })
 .addTo(map);
 
 // ===============================
-// 5. 거리 계산 (핵심 알고리즘)
+// 6. 그래프 생성
+// ===============================
+function buildGraphFromGPX(gpxLayer){
+
+  graph = {};
+
+  gpxLayer.eachLayer(layer => {
+
+    if(layer instanceof L.Polyline){
+
+      const latlngs = layer.getLatLngs();
+
+      for(let i=0; i<latlngs.length-1; i++){
+
+        const a = latlngs[i];
+        const b = latlngs[i+1];
+
+        const keyA = `${a.lat.toFixed(6)},${a.lng.toFixed(6)}`;
+        const keyB = `${b.lat.toFixed(6)},${b.lng.toFixed(6)}`;
+
+        if(!graph[keyA]) graph[keyA] = [];
+        if(!graph[keyB]) graph[keyB] = [];
+
+        graph[keyA].push(keyB);
+        graph[keyB].push(keyA);
+      }
+    }
+  });
+
+  console.log("그래프 생성:", Object.keys(graph).length);
+}
+
+// ===============================
+// 7. 거리 계산
 // ===============================
 function getDistance(a, b){
   const dx = a.lat - b.lat;
@@ -129,54 +158,144 @@ function getDistance(a, b){
 }
 
 // ===============================
-// 6. 클릭 → 가장 가까운 WPT 찾기
+// 8. 가장 가까운 노드 찾기
 // ===============================
-let lastPopup = null;
+function findNearestNode(lat, lng){
+  let minDist = Infinity;
+  let nearest = null;
 
+  Object.keys(graph).forEach(node=>{
+    const [nLat,nLng] = node.split(",").map(Number);
+    const dist = (lat-nLat)**2 + (lng-nLng)**2;
+
+    if(dist < minDist){
+      minDist = dist;
+      nearest = node;
+    }
+  });
+
+  return nearest;
+}
+
+// ===============================
+// 9. 최단 경로 (다익스트라)
+// ===============================
+function findShortestPath(start, end){
+
+  let dist = {};
+  let prev = {};
+  let queue = [];
+
+  Object.keys(graph).forEach(node=>{
+    dist[node] = Infinity;
+    prev[node] = null;
+  });
+
+  dist[start] = 0;
+  queue.push(start);
+
+  while(queue.length){
+
+    let current = queue.shift();
+
+    if(current === end) break;
+
+    graph[current].forEach(next=>{
+
+      const [lat1,lng1] = current.split(",").map(Number);
+      const [lat2,lng2] = next.split(",").map(Number);
+
+      const d = Math.sqrt((lat1-lat2)**2 + (lng1-lng2)**2);
+
+      const alt = dist[current] + d;
+
+      if(alt < dist[next]){
+        dist[next] = alt;
+        prev[next] = current;
+        queue.push(next);
+      }
+    });
+  }
+
+  let path = [];
+  let u = end;
+
+  while(u){
+    path.unshift(u);
+    u = prev[u];
+  }
+
+  return path;
+}
+
+// ===============================
+// 10. 경로 그리기
+// ===============================
+function drawPath(path){
+
+  if(pathLine){
+    map.removeLayer(pathLine);
+  }
+
+  const latlngs = path.map(p=>{
+    const [lat,lng] = p.split(",").map(Number);
+    return [lat,lng];
+  });
+
+  pathLine = L.polyline(latlngs, {
+    color: "blue",
+    weight: 5
+  }).addTo(map);
+}
+
+// ===============================
+// 11. 클릭 이벤트 (전체 통합)
+// ===============================
 map.on("click", function(e){
 
   if(wptMarkers.length === 0){
-    alert("⚠️ WPT 로딩 중입니다.");
+    alert("WPT 로딩 중");
     return;
   }
 
-  const clicked = {
-    lat: e.latlng.lat,
-    lng: e.latlng.lng
-  };
+  const clicked = { lat:e.latlng.lat, lng:e.latlng.lng };
 
+  // 1. 가장 가까운 WPT 찾기
   let nearest = null;
   let minDist = Infinity;
 
   wptMarkers.forEach(w=>{
-    const dist = getDistance(clicked, w);
-    if(dist < minDist){
-      minDist = dist;
+    const d = getDistance(clicked, w);
+    if(d < minDist){
+      minDist = d;
       nearest = w;
     }
   });
 
-  if(nearest){
-
-    // 이전 마커 색상 복구
-    if(lastSelectedMarker && lastSelectedMarker !== nearest.marker){
-      lastSelectedMarker.setIcon(blueIcon);
-    }
-
-    // 현재 마커 강조
-    nearest.marker.setIcon(redIcon);
-    nearest.marker.openPopup();
-    lastSelectedMarker = nearest.marker;
-
-    // 기존 팝업 제거
-    if(lastPopup) map.closePopup(lastPopup);
-
-    // 결과 표시
-    lastPopup = L.popup()
-      .setLatLng(e.latlng)
-      .setContent("📍 가장 가까운 가로등: <b>" + nearest.name + "</b>")
-      .openOn(map);
+  // 2. 마커 강조
+  if(lastSelectedMarker){
+    lastSelectedMarker.setIcon(blueIcon);
   }
+
+  nearest.marker.setIcon(redIcon);
+  nearest.marker.openPopup();
+  lastSelectedMarker = nearest.marker;
+
+  // 3. 경로 계산
+  const startNode = findNearestNode(clicked.lat, clicked.lng);
+  const endNode = findNearestNode(nearest.lat, nearest.lng);
+
+  const path = findShortestPath(startNode, endNode);
+
+  drawPath(path);
+
+  // 4. 팝업 표시
+  if(lastPopup) map.closePopup(lastPopup);
+
+  lastPopup = L.popup()
+    .setLatLng(e.latlng)
+    .setContent("📍 목표: " + nearest.name)
+    .openOn(map);
 });
 
 </script>
