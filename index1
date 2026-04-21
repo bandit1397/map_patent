@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<title>산악 위치 특정 시스템 (특허용 데모)</title>
+
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/leaflet-gpx@1.7.0/gpx.js"></script>
+
+<style>
+  body { margin:0; }
+  #map { height:100vh; }
+  #info {
+    position: fixed;
+    top: 10px;
+    left: 10px;
+    background: white;
+    padding: 10px;
+    border-radius: 5px;
+    font-size: 14px;
+    z-index: 999;
+  }
+</style>
+</head>
+
+<body>
+
+<div id="info">
+  📍 지도 클릭 → 가장 가까운 가로등 자동 표시
+</div>
+
+<div id="map"></div>
+
+<script>
+// ===============================
+// 1. 지도 초기화
+// ===============================
+const map = L.map('map').setView([37.5345,126.8685], 15);
+
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  maxZoom: 19
+}).addTo(map);
+
+// ===============================
+// 2. 변수 선언
+// ===============================
+let wptList = [];
+let wptMarkers = [];
+let lastSelectedMarker = null;
+
+// 아이콘
+const blueIcon = L.icon({
+  iconUrl: "https://maps.google.com/mapfiles/ms/icons/blue-dot.png",
+  iconSize: [32,32]
+});
+
+const redIcon = L.icon({
+  iconUrl: "https://maps.google.com/mapfiles/ms/icons/red-dot.png",
+  iconSize: [32,32]
+});
+
+// ===============================
+// 3. GPX 트랙 로드
+// ===============================
+new L.GPX("galsan_demo.gpx", {
+  async: true,
+  polyline_options: {
+    color: "red",
+    weight: 4
+  }
+})
+.on("loaded", function(e){
+  map.fitBounds(e.target.getBounds());
+
+  // ===============================
+  // 4. WPT XML 직접 파싱 (핵심)
+  // ===============================
+  fetch("galsan_demo.gpx")
+    .then(res => res.text())
+    .then(xmlText => {
+
+      const parser = new DOMParser();
+      const xml = parser.parseFromString(xmlText, "application/xml");
+
+      const wpts = xml.getElementsByTagName("wpt");
+
+      wptList = [];
+      wptMarkers = [];
+
+      for(let i=0; i<wpts.length; i++){
+
+        const lat = parseFloat(wpts[i].getAttribute("lat"));
+        const lng = parseFloat(wpts[i].getAttribute("lon"));
+
+        const nameNode = wpts[i].getElementsByTagName("name")[0];
+        const name = nameNode ? nameNode.textContent : "이름없음";
+
+        // 데이터 저장
+        const wptObj = { name, lat, lng };
+        wptList.push(wptObj);
+
+        // 지도 마커 생성
+        const marker = L.marker([lat, lng], { icon: blueIcon })
+          .bindPopup(name)
+          .addTo(map);
+
+        wptMarkers.push({
+          ...wptObj,
+          marker: marker
+        });
+      }
+
+      console.log("✅ WPT 로드 완료:", wptList.length);
+    })
+    .catch(err=>{
+      console.error("❌ GPX 로드 실패:", err);
+    });
+})
+.addTo(map);
+
+// ===============================
+// 5. 거리 계산 (핵심 알고리즘)
+// ===============================
+function getDistance(a, b){
+  const dx = a.lat - b.lat;
+  const dy = a.lng - b.lng;
+  return dx*dx + dy*dy;
+}
+
+// ===============================
+// 6. 클릭 → 가장 가까운 WPT 찾기
+// ===============================
+let lastPopup = null;
+
+map.on("click", function(e){
+
+  if(wptMarkers.length === 0){
+    alert("⚠️ WPT 로딩 중입니다.");
+    return;
+  }
+
+  const clicked = {
+    lat: e.latlng.lat,
+    lng: e.latlng.lng
+  };
+
+  let nearest = null;
+  let minDist = Infinity;
+
+  wptMarkers.forEach(w=>{
+    const dist = getDistance(clicked, w);
+    if(dist < minDist){
+      minDist = dist;
+      nearest = w;
+    }
+  });
+
+  if(nearest){
+
+    // 이전 마커 색상 복구
+    if(lastSelectedMarker && lastSelectedMarker !== nearest.marker){
+      lastSelectedMarker.setIcon(blueIcon);
+    }
+
+    // 현재 마커 강조
+    nearest.marker.setIcon(redIcon);
+    nearest.marker.openPopup();
+    lastSelectedMarker = nearest.marker;
+
+    // 기존 팝업 제거
+    if(lastPopup) map.closePopup(lastPopup);
+
+    // 결과 표시
+    lastPopup = L.popup()
+      .setLatLng(e.latlng)
+      .setContent("📍 가장 가까운 가로등: <b>" + nearest.name + "</b>")
+      .openOn(map);
+  }
+});
+
+</script>
+
+</body>
+</html>
